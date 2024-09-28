@@ -31,6 +31,12 @@ func NewByName(proxyName string, dialer C.Dialer) (C.Dialer, error) {
 	if proxy, ok := proxies[proxyName]; ok {
 		return New(proxy, dialer, true), nil
 	}
+
+	proxies = tunnel.ProxiesWithProviders()
+	if proxy, ok := proxies[proxyName]; ok {
+		return New(proxy, dialer, true), nil
+	}
+
 	return nil, fmt.Errorf("proxyName[%s] not found", proxyName)
 }
 

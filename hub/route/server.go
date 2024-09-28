@@ -3,19 +3,14 @@ package route
 import (
 	"bytes"
 	"crypto/subtle"
-	"crypto/tls"
 	"encoding/json"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/metacubex/mihomo/adapter/inbound"
-	CN "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/utils"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
@@ -135,141 +130,42 @@ func router(isDebug bool, secret string, dohServer string) *chi.Mux {
 }
 
 func start(cfg *Config) {
-	// first stop existing server
-	if httpServer != nil {
-		_ = httpServer.Close()
-		httpServer = nil
-	}
-
-	// handle addr
-	if len(cfg.Addr) > 0 {
-		l, err := inbound.Listen("tcp", cfg.Addr)
-		if err != nil {
-			log.Errorln("External controller listen error: %s", err)
-			return
-		}
-		log.Infoln("RESTful API listening at: %s", l.Addr().String())
-
-		server := &http.Server{
-			Handler: router(cfg.IsDebug, cfg.Secret, cfg.DohServer),
-		}
-		httpServer = server
-		if err = server.Serve(l); err != nil {
-			log.Errorln("External controller serve error: %s", err)
-		}
-	}
+	log.Infoln("start is ok by pandora-box")
 }
 
 func startTLS(cfg *Config) {
-	// first stop existing server
-	if tlsServer != nil {
-		_ = tlsServer.Close()
-		tlsServer = nil
-	}
-
-	// handle tlsAddr
-	if len(cfg.TLSAddr) > 0 {
-		c, err := CN.ParseCert(cfg.Certificate, cfg.PrivateKey, C.Path)
-		if err != nil {
-			log.Errorln("External controller tls listen error: %s", err)
-			return
-		}
-
-		l, err := inbound.Listen("tcp", cfg.TLSAddr)
-		if err != nil {
-			log.Errorln("External controller tls listen error: %s", err)
-			return
-		}
-
-		log.Infoln("RESTful API tls listening at: %s", l.Addr().String())
-		server := &http.Server{
-			Handler: router(cfg.IsDebug, cfg.Secret, cfg.DohServer),
-			TLSConfig: &tls.Config{
-				Certificates: []tls.Certificate{c},
-			},
-		}
-		tlsServer = server
-		if err = server.ServeTLS(l, "", ""); err != nil {
-			log.Errorln("External controller tls serve error: %s", err)
-		}
-	}
+	log.Infoln("start tls is ok by pandora-box")
 }
 
 func startUnix(cfg *Config) {
-	// first stop existing server
-	if unixServer != nil {
-		_ = unixServer.Close()
-		unixServer = nil
-	}
+	log.Infoln("start unix is ok by pandora-box")
 
-	// handle addr
-	if len(cfg.UnixAddr) > 0 {
-		addr := C.Path.Resolve(cfg.UnixAddr)
-
-		dir := filepath.Dir(addr)
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			if err := os.MkdirAll(dir, 0o755); err != nil {
-				log.Errorln("External controller unix listen error: %s", err)
-				return
-			}
-		}
-
-		// https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
-		//
-		// Note: As mentioned above in the ‘security’ section, when a socket binds a socket to a valid pathname address,
-		// a socket file is created within the filesystem. On Linux, the application is expected to unlink
-		// (see the notes section in the man page for AF_UNIX) before any other socket can be bound to the same address.
-		// The same applies to Windows unix sockets, except that, DeleteFile (or any other file delete API)
-		// should be used to delete the socket file prior to calling bind with the same path.
-		_ = syscall.Unlink(addr)
-
-		l, err := inbound.Listen("unix", addr)
-		if err != nil {
-			log.Errorln("External controller unix listen error: %s", err)
-			return
-		}
-		_ = os.Chmod(addr, 0o666)
-		log.Infoln("RESTful API unix listening at: %s", l.Addr().String())
-
-		server := &http.Server{
-			Handler: router(cfg.IsDebug, "", cfg.DohServer),
-		}
-		unixServer = server
-		if err = server.Serve(l); err != nil {
-			log.Errorln("External controller unix serve error: %s", err)
-		}
-	}
 }
 
 func startPipe(cfg *Config) {
-	// first stop existing server
-	if pipeServer != nil {
-		_ = pipeServer.Close()
-		pipeServer = nil
-	}
+	log.Infoln("start pipe is ok by pandora-box")
+}
 
-	// handle addr
-	if len(cfg.PipeAddr) > 0 {
-		if !strings.HasPrefix(cfg.PipeAddr, "\\\\.\\pipe\\") { // windows namedpipe must start with "\\.\pipe\"
-			log.Errorln("External controller pipe listen error: windows namedpipe must start with \"\\\\.\\pipe\\\"")
-			return
-		}
+func StartByPandora() (serverAddr string) {
+	l, err := inbound.Listen("tcp", "127.0.0.1:9966")
+	if err != nil {
+		log.Errorln("External controller listen error: %s", err)
 
-		l, err := inbound.ListenNamedPipe(cfg.PipeAddr)
+		l, err = inbound.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			log.Errorln("External controller pipe listen error: %s", err)
-			return
-		}
-		log.Infoln("RESTful API pipe listening at: %s", l.Addr().String())
-
-		server := &http.Server{
-			Handler: router(cfg.IsDebug, "", cfg.DohServer),
-		}
-		pipeServer = server
-		if err = server.Serve(l); err != nil {
-			log.Errorln("External controller pipe serve error: %s", err)
+			panic(err)
 		}
 	}
+	serverAddr = l.Addr().String()
+	log.Infoln("Pandora-Box Restful Api Listening At: %s", serverAddr)
+
+	go func() {
+		if err = http.Serve(l, router(false, "", "")); err != nil {
+			log.Errorln("External controller serve error: %s", err)
+		}
+	}()
+
+	return
 }
 
 func setPrivateNetworkAccess(next http.Handler) http.Handler {

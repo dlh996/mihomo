@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	Tvless "github.com/metacubex/mihomo/transport/vless"
 	"net/url"
 	"strconv"
 	"strings"
@@ -100,6 +102,9 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			hysteria2["fingerprint"] = query.Get("pinSHA256")
 			hysteria2["down"] = query.Get("down")
 			hysteria2["up"] = query.Get("up")
+			if ports := query.Get("mport"); ports != "" {
+				hysteria2["ports"] = ports
+			}
 
 			proxies = append(proxies, hysteria2)
 
@@ -204,7 +209,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			proxies = append(proxies, trojan)
 
 		case "vless":
-			urlVLess, err := url.Parse(line)
+			urlVLess, err := parseUrl(line)
 			if err != nil {
 				continue
 			}
@@ -216,7 +221,10 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				continue
 			}
 			if flow := query.Get("flow"); flow != "" {
-				vless["flow"] = strings.ToLower(flow)
+				if strings.ToLower(flow) != Tvless.XRV {
+					continue
+				}
+				vless["flow"] = Tvless.XRV
 			}
 			proxies = append(proxies, vless)
 
@@ -226,7 +234,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			dcBuf, err := tryDecodeBase64([]byte(body))
 			if err != nil {
 				// Xray VMessAEAD share link
-				urlVMess, err := url.Parse(line)
+				urlVMess, err := parseUrl(line)
 				if err != nil {
 					continue
 				}
@@ -531,4 +539,32 @@ func uniqueName(names map[string]int, name string) string {
 		names[name] = index
 	}
 	return name
+}
+
+func parseUrl(line string) (*url.URL, error) {
+	urlVLess, err := url.Parse(line)
+	if err != nil {
+		return nil, err
+	}
+	host := urlVLess.Host
+	if !strings.Contains(host, ".") {
+		data := string(DecodeBase64([]byte(host)))
+		i := strings.Split(data, "@")
+		if len(i) != 2 {
+			return nil, errors.New("host format error")
+		}
+		j := strings.Split(i[0], ":")
+		if len(j) == 2 {
+			data = j[1] + "@" + i[1]
+		} else {
+			data = j[0] + "@" + i[1]
+		}
+		line = strings.Replace(line, host, data, 1)
+		urlVLess, err = url.Parse(line)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return urlVLess, err
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/structure"
@@ -229,7 +230,12 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 		Password: option.Password,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ss %s initialize error: %w", addr, err)
+		if !strings.Contains(option.Cipher, "chacha20") {
+			return nil, fmt.Errorf("ss %s initialize error: %w", addr, err)
+		}
+		method, _ = shadowsocks.CreateMethod(context.Background(), "chacha20-ietf-poly1305", shadowsocks.MethodOptions{
+			Password: option.Password,
+		})
 	}
 
 	var v2rayOption *v2rayObfs.Option
