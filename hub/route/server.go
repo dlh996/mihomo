@@ -146,7 +146,7 @@ func startPipe(cfg *Config) {
 	log.Infoln("start pipe is ok by pandora-box")
 }
 
-func StartByPandora() (serverAddr string) {
+func StartByPandora(secret string) (serverAddr string) {
 	l, err := inbound.Listen("tcp", "127.0.0.1:9966")
 	if err != nil {
 		log.Errorln("External controller listen error: %s", err)
@@ -160,7 +160,7 @@ func StartByPandora() (serverAddr string) {
 	log.Infoln("Pandora-Box Restful Api Listening At: %s", serverAddr)
 
 	go func() {
-		if err = http.Serve(l, router(false, "", "")); err != nil {
+		if err = http.Serve(l, router(false, secret, "")); err != nil {
 			log.Errorln("External controller serve error: %s", err)
 		}
 	}()
