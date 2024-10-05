@@ -18,10 +18,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/sagernet/cors"
 )
 
 var (
@@ -53,6 +53,22 @@ type Config struct {
 	PrivateKey  string
 	DohServer   string
 	IsDebug     bool
+	Cors        Cors
+}
+
+type Cors struct {
+	AllowOrigins        []string
+	AllowPrivateNetwork bool
+}
+
+func (c Cors) Apply(r chi.Router) {
+	r.Use(cors.New(cors.Options{
+		AllowedOrigins:      c.AllowOrigins,
+		AllowedMethods:      []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		AllowedHeaders:      []string{"Content-Type", "Authorization"},
+		AllowPrivateNetwork: c.AllowPrivateNetwork,
+		MaxAge:              300,
+	}).Handler)
 }
 
 func ReCreateServer(cfg *Config) {
@@ -68,16 +84,9 @@ func SetUIPath(path string) {
 	uiPath = C.Path.Resolve(path)
 }
 
-func router(isDebug bool, secret string, dohServer string) *chi.Mux {
+func router(isDebug bool, secret string, dohServer string, cors Cors) *chi.Mux {
 	r := chi.NewRouter()
-	corsM := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
-		AllowedHeaders: []string{"Content-Type", "Authorization"},
-		MaxAge:         300,
-	})
-	r.Use(setPrivateNetworkAccess)
-	r.Use(corsM.Handler)
+	cors.Apply(r)
 	if isDebug {
 		r.Mount("/debug", func() http.Handler {
 			r := chi.NewRouter()
@@ -160,21 +169,12 @@ func StartByPandora(secret string) (serverAddr string) {
 	log.Infoln("Pandora-Box Restful Api Listening At: %s", serverAddr)
 
 	go func() {
-		if err = http.Serve(l, router(false, secret, "")); err != nil {
+		if err = http.Serve(l, router(false, secret, "", Cors{})); err != nil {
 			log.Errorln("External controller serve error: %s", err)
 		}
 	}()
 
 	return
-}
-
-func setPrivateNetworkAccess(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
-			w.Header().Add("Access-Control-Allow-Private-Network", "true")
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 func safeEuqal(a, b string) bool {
