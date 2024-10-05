@@ -24,14 +24,9 @@ import (
 	"github.com/sagernet/cors"
 )
 
-var (
-	uiPath = ""
-
-	httpServer *http.Server
-	tlsServer  *http.Server
-	unixServer *http.Server
-	pipeServer *http.Server
-)
+func SetEmbedMode(embed bool) {
+	log.Infoln("set embed mode:", embed)
+}
 
 type Traffic struct {
 	Up   int64 `json:"up"`
@@ -72,16 +67,11 @@ func (c Cors) Apply(r chi.Router) {
 }
 
 func ReCreateServer(cfg *Config) {
-	go start(cfg)
-	go startTLS(cfg)
-	go startUnix(cfg)
-	if inbound.SupportNamedPipe {
-		go startPipe(cfg)
-	}
+	log.Infoln("ReCreateServer is ok")
 }
 
 func SetUIPath(path string) {
-	uiPath = C.Path.Resolve(path)
+	log.Infoln("SetUIPath is ok")
 }
 
 func router(isDebug bool, secret string, dohServer string, cors Cors) *chi.Mux {
@@ -109,50 +99,21 @@ func router(isDebug bool, secret string, dohServer string, cors Cors) *chi.Mux {
 		r.Get("/version", version)
 		r.Mount("/configs", configRouter())
 		r.Mount("/proxies", proxyRouter())
-		r.Mount("/group", GroupRouter())
+		r.Mount("/group", groupRouter())
 		r.Mount("/rules", ruleRouter())
 		r.Mount("/connections", connectionRouter())
 		r.Mount("/providers/proxies", proxyProviderRouter())
 		r.Mount("/providers/rules", ruleProviderRouter())
 		r.Mount("/cache", cacheRouter())
 		r.Mount("/dns", dnsRouter())
-		r.Mount("/restart", restartRouter())
-		r.Mount("/upgrade", upgradeRouter())
 		addExternalRouters(r)
-
 	})
 
-	if uiPath != "" {
-		r.Group(func(r chi.Router) {
-			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(uiPath)))
-			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect).ServeHTTP)
-			r.Get("/ui/*", func(w http.ResponseWriter, r *http.Request) {
-				fs.ServeHTTP(w, r)
-			})
-		})
-	}
 	if len(dohServer) > 0 && dohServer[0] == '/' {
 		r.Mount(dohServer, dohRouter())
 	}
 
 	return r
-}
-
-func start(cfg *Config) {
-	log.Infoln("start is ok by pandora-box")
-}
-
-func startTLS(cfg *Config) {
-	log.Infoln("start tls is ok by pandora-box")
-}
-
-func startUnix(cfg *Config) {
-	log.Infoln("start unix is ok by pandora-box")
-
-}
-
-func startPipe(cfg *Config) {
-	log.Infoln("start pipe is ok by pandora-box")
 }
 
 func StartByPandora(secret string) (serverAddr string) {

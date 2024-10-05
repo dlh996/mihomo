@@ -19,6 +19,7 @@ import (
 	G "github.com/metacubex/mihomo/component/geodata"
 	mihomoHttp "github.com/metacubex/mihomo/component/http"
 	"github.com/metacubex/mihomo/component/iface"
+	"github.com/metacubex/mihomo/component/keepalive"
 	"github.com/metacubex/mihomo/component/profile"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
 	"github.com/metacubex/mihomo/component/resolver"
@@ -117,7 +118,7 @@ func ApplyConfig(cfg *config.Config, force bool) {
 	runtime.GC()
 	tunnel.OnRunning()
 	hcCompatibleProvider(cfg.Providers)
-	initExternalUI()
+	updateUpdater(cfg)
 
 	resolver.ResetConnection()
 }
@@ -176,6 +177,9 @@ func GetGeneral() *config.General {
 		GlobalClientFingerprint: tlsC.GetGlobalFingerprint(),
 		GlobalUA:                mihomoHttp.UA(),
 		ETagSupport:             resource.ETag(),
+		KeepAliveInterval:       int(keepalive.KeepAliveInterval() / time.Second),
+		KeepAliveIdle:           int(keepalive.KeepAliveIdle() / time.Second),
+		DisableKeepAlive:        keepalive.DisableKeepAlive(),
 	}
 
 	return general
@@ -235,6 +239,8 @@ func updateDNS(c *config.DNS, generalIPv6 bool) {
 		resolver.DefaultResolver = nil
 		resolver.DefaultHostMapper = nil
 		resolver.DefaultLocalServer = nil
+		resolver.ProxyServerHostResolver = nil
+		resolver.DirectHostResolver = nil
 		dns.ReCreateServer("", nil, nil)
 		return
 	}
@@ -251,11 +257,12 @@ func updateDNS(c *config.DNS, generalIPv6 bool) {
 		Default:              c.DefaultNameserver,
 		Policy:               c.NameServerPolicy,
 		ProxyServer:          c.ProxyServerNameserver,
-		Tunnel:               tunnel.Tunnel,
+		DirectServer:         c.DirectNameServer,
+		DirectFollowPolicy:   c.DirectFollowPolicy,
 		CacheAlgorithm:       c.CacheAlgorithm,
 	}
 
-	r, pr := dns.NewResolver(cfg)
+	r := dns.NewResolver(cfg)
 	m := dns.NewEnhancer(cfg)
 
 	// reuse cache of old host mapper
@@ -265,14 +272,22 @@ func updateDNS(c *config.DNS, generalIPv6 bool) {
 
 	resolver.DefaultResolver = r
 	resolver.DefaultHostMapper = m
-	resolver.DefaultLocalServer = dns.NewLocalServer(r, m)
+	resolver.DefaultLocalServer = dns.NewLocalServer(r.Resolver, m)
 	resolver.UseSystemHosts = c.UseSystemHosts
 
-	if pr.Invalid() {
-		resolver.ProxyServerHostResolver = pr
+	if r.ProxyResolver.Invalid() {
+		resolver.ProxyServerHostResolver = r.ProxyResolver
+	} else {
+		resolver.ProxyServerHostResolver = r.Resolver
 	}
 
-	dns.ReCreateServer(c.Listen, r, m)
+	if r.DirectResolver.Invalid() {
+		resolver.DirectHostResolver = r.DirectResolver
+	} else {
+		resolver.DirectHostResolver = r.Resolver
+	}
+
+	dns.ReCreateServer(c.Listen, r.Resolver, m)
 }
 
 func updateHosts(tree *trie.DomainTrie[resolver.HostValue]) {
@@ -383,16 +398,14 @@ func updateTunnels(tunnels []LC.Tunnel) {
 	listener.PatchTunnel(tunnels, tunnel.Tunnel)
 }
 
-func initExternalUI() {
-	if updater.AutoDownloadUI {
-		dirEntries, _ := os.ReadDir(updater.ExternalUIPath)
-		if len(dirEntries) > 0 {
-			log.Infoln("UI already exists, skip downloading")
-		} else {
-			log.Infoln("External UI downloading ...")
-			updater.DownloadUI()
-		}
-	}
+func updateUpdater(cfg *config.Config) {
+	general := cfg.General
+	updater.SetGeoAutoUpdate(general.GeoAutoUpdate)
+	updater.SetGeoUpdateInterval(general.GeoUpdateInterval)
+
+	controller := cfg.Controller
+	updater.DefaultUiUpdater = updater.NewUiUpdater(controller.ExternalUI, controller.ExternalUIURL, controller.ExternalUIName)
+	updater.DefaultUiUpdater.AutoDownloadUI()
 }
 
 func updateGeneral(general *config.General) {
@@ -407,6 +420,10 @@ func updateGeneral(general *config.General) {
 
 	inbound.SetTfo(general.InboundTfo)
 	inbound.SetMPTCP(general.InboundMPTCP)
+
+	keepalive.SetKeepAliveIdle(time.Duration(general.KeepAliveIdle) * time.Second)
+	keepalive.SetKeepAliveInterval(time.Duration(general.KeepAliveInterval) * time.Second)
+	keepalive.SetDisableKeepAlive(general.DisableKeepAlive)
 
 	adapter.UnifiedDelay.Store(general.UnifiedDelay)
 
