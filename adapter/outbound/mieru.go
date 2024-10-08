@@ -3,14 +3,13 @@ package outbound
 import (
 	"context"
 	"fmt"
+	mierumodel "github.com/enfein/mieru/v3/apis/model"
 	"net"
 	"runtime"
 	"strconv"
 
 	mieruclient "github.com/enfein/mieru/v3/apis/client"
-	mierumodel "github.com/enfein/mieru/v3/apis/model"
 	mierupb "github.com/enfein/mieru/v3/pkg/appctl/appctlpb"
-	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/dialer"
 	C "github.com/metacubex/mihomo/constant"
 	"google.golang.org/protobuf/proto"
@@ -57,7 +56,13 @@ func (m *Mieru) DialContext(ctx context.Context, metadata *C.Metadata, _ ...dial
 	if err := m.client.HandshakeWithConnect(ctx, c, addrSpec); err != nil {
 		return nil, err
 	}
-	return NewConn(N.NewRefConn(c, m), m), nil
+
+	return NewConn(c, m), nil
+}
+
+// SupportWithDialer implements C.ProxyAdapter
+func (m *Mieru) SupportWithDialer() C.NetWork {
+	return C.TCP
 }
 
 func NewMieru(option MieruOption) (*Mieru, error) {
