@@ -148,6 +148,9 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			if udpRelayMode := query.Get("udp_relay_mode"); udpRelayMode != "" {
 				tuic["udp-relay-mode"] = udpRelayMode
 			}
+			if insecure := query.Get("allow_insecure"); insecure == "1" {
+				tuic["skip-cert-verify"] = true
+			}
 
 			proxies = append(proxies, tuic)
 
