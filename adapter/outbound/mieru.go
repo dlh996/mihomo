@@ -60,11 +60,6 @@ func (m *Mieru) DialContext(ctx context.Context, metadata *C.Metadata, _ ...dial
 	return NewConn(c, m), nil
 }
 
-// SupportWithDialer implements C.ProxyAdapter
-func (m *Mieru) SupportWithDialer() C.NetWork {
-	return C.TCP
-}
-
 func NewMieru(option MieruOption) (*Mieru, error) {
 	config, err := buildMieruClientConfig(option)
 	if err != nil {
@@ -181,8 +176,7 @@ func buildMieruClientConfig(option MieruOption) (*mieruclient.ClientConfig, erro
 			Servers: []*mierupb.ServerEndpoint{server},
 			Mtu:     proto.Int32(int32(option.MTU)),
 			Multiplexing: &mierupb.MultiplexingConfig{
-				// Multiplexing doesn't work well with connection tracking.
-				Level: mierupb.MultiplexingLevel_MULTIPLEXING_OFF.Enum(),
+				Level: mierupb.MultiplexingLevel_MULTIPLEXING_HIGH.Enum(),
 			},
 		},
 	}, nil
