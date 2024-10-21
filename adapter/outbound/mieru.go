@@ -40,20 +40,22 @@ type MieruOption struct {
 
 // DialContext implements C.ProxyAdapter
 func (m *Mieru) DialContext(ctx context.Context, metadata *C.Metadata, _ ...dialer.Option) (_ C.Conn, err error) {
-	c, err := m.client.DialContext(ctx)
-	if err != nil {
-		return nil, err
+
+	netAddrSpec := mierumodel.NetAddrSpec{
+		AddrSpec: mierumodel.AddrSpec{
+			Port: int(metadata.DstPort),
+		},
+		Net: metadata.NetWork.String(),
 	}
 
-	addrSpec := mierumodel.AddrSpec{
-		Port: int(metadata.DstPort),
-	}
 	if metadata.Host != "" {
-		addrSpec.FQDN = metadata.Host
+		netAddrSpec.AddrSpec.FQDN = metadata.Host
 	} else {
-		addrSpec.IP = metadata.DstIP.AsSlice()
+		netAddrSpec.AddrSpec.IP = metadata.DstIP.AsSlice()
 	}
-	if err := m.client.HandshakeWithConnect(ctx, c, addrSpec); err != nil {
+
+	c, err := m.client.DialContext(ctx, netAddrSpec)
+	if err != nil {
 		return nil, err
 	}
 

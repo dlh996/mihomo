@@ -1,6 +1,8 @@
 module github.com/metacubex/mihomo
 
-go 1.20
+go 1.21
+
+toolchain go1.22.6
 
 require (
 	github.com/3andne/restls-client-go v0.1.6
@@ -56,7 +58,7 @@ require (
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e // lastest version compatible with golang1.20
 	golang.org/x/net v0.30.0
 	golang.org/x/sys v0.26.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.35.1
 	gopkg.in/yaml.v3 v3.0.1
 	lukechampine.com/blake3 v1.3.0
 )
@@ -79,7 +81,7 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/google/btree v1.1.2 // indirect
+	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
@@ -120,3 +122,5 @@ require (
 )
 
 replace github.com/sagernet/sing => github.com/metacubex/sing v0.0.0-20240724044459-6f3cf5896297
+
+replace github.com/enfein/mieru/v3 => github.com/snakem982/mieru/v3 v3.8.1-moshen
