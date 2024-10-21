@@ -41,8 +41,8 @@ const (
 	Hysteria2
 	WireGuard
 	Tuic
-	Ssh
 	Mieru
+	Ssh
 )
 
 const (
@@ -214,6 +214,8 @@ func (at AdapterType) String() string {
 		return "WireGuard"
 	case Tuic:
 		return "Tuic"
+	case Ssh:
+		return "Ssh"
 	case Mieru:
 		return "Mieru"
 
@@ -227,8 +229,6 @@ func (at AdapterType) String() string {
 		return "URLTest"
 	case LoadBalance:
 		return "LoadBalance"
-	case Ssh:
-		return "Ssh"
 	default:
 		return "Unknown"
 	}
