@@ -147,6 +147,12 @@ func safeEuqal(a, b string) bool {
 func authentication(secret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
+
+			if r.URL.Path == "/Pandora-Box-Download" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Browser websocket not support custom header
 			if r.Header.Get("Upgrade") == "websocket" && r.URL.Query().Get("token") != "" {
 				token := r.URL.Query().Get("token")
