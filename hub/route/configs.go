@@ -24,6 +24,9 @@ import (
 func configRouter() http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConfigs)
+	r.Put("/", updateConfigs)
+	r.Patch("/", patchConfigs)
+
 	return r
 }
 
